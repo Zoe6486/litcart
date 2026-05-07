@@ -1,0 +1,74 @@
+name: Go CI
+
+# on:
+#   push:
+#     branches:
+#       - main
+#       - feature/signup
+#   pull_request:
+#     branches:
+#       - main
+# 只对一个 feature 分支生效
+
+# 新建 feature/login、feature/cart 都不会自动跑 CI
+
+# 企业里 不会为每个 feature 写一条
+# 所以用下面的更好：
+# ✅ 所有 PR → main 都必须过 CI
+
+# ✅ main 的任何变更都会跑 CI
+
+# ❌ feature 分支本身不需要 push 就跑（节省资源）
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # 2. Go 环境
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          # go-version: "1.22"
+          go-version-file: go.mod
+
+
+      # 3. 依赖
+      - name: Download dependencies
+        run: go mod download #不使用go mod tidy防止修改go.sum和go.mod，适合 CI
+
+      # - name: Format check
+      #   run: |
+      # test -z "$(gofmt -l .)" # 只查格式正确,不查：潜在 bug,无用代码,shadow 变量,err 未处理
+      # 4. 安装 golangci-lint 和 Lint检查（企业必备）
+      
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.6
+
+      # 5. 单元测试
+      - name: Run tests
+        run: go test ./...
+
+      # 6. 构建（不运行）
+      - name: Build
+        run: go build ./...
+
+# 等你熟了 CI 之后，可以进阶到：
+
+# CI 中 build Docker image（不部署）
+
+# CI 中跑 golangci-lint
+
+# 单独一个 integration-test job（起 MySQL）

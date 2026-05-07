@@ -1,0 +1,61 @@
+# # yaml 配置
+# # version: "3.7" 已经不再被新版本的 docker-compose 使用
+# services:
+#   mysql8019:
+#     image: "mysql:8.0.19"
+#     ports:
+#       - "33061:3306"
+#     # mysql_native_password 兼容旧客户端 + 启动时自动执行 init.sql
+#     command: "--default-authentication-plugin=mysql_native_password --init-file /data/application/init.sql"
+#     environment:
+#       MYSQL_ROOT_PASSWORD: "root1234"
+#       MYSQL_DATABASE: "db_litcart"
+#       MYSQL_PASSWORD: "root1234"
+#     #把 宿主机当前目录下的 init.sql挂载到 容器里的 /data/application/init.sql
+#     volumes:
+#       - ./init.sql:/data/application/init.sql
+#   redis507:
+#     image: "redis:5.0.7"
+#     ports:
+#       - "26379:6379"
+#   litcart_app:
+#     build: .
+#     command: sh -c "./wait-for.sh mysql8019:3306 redis507:6379 -- ./litcart_app ./conf/config.yaml"
+#     depends_on:
+#       - mysql8019
+#       - redis507
+#     ports:
+#       - "8888:8084"
+
+
+# Docker Compose 开发阶段配置，只启动 MySQL 和 Redis
+services:
+  mysql8019:
+    image: "mysql:8.0.19"
+    ports:
+      - "23306:3306"   # 映射到宿主机 23306，和我的 dev.yaml 保持一致
+    # command: "--default-authentication-plugin=mysql_native_password --init-file /data/application/init.sql"
+    command: "--default-authentication-plugin=mysql_native_password"
+    environment:
+      MYSQL_ROOT_PASSWORD: "root1234"
+      MYSQL_DATABASE: "db_litcart"
+      MYSQL_PASSWORD: "root1234"
+    volumes:
+      # - ./mysql_data:/var/lib/mysql   # 把数据库数据挂载到宿主机目录
+      - mysql_data:/var/lib/mysql #Docker Volume 保存 MySQL 数据, 团队协作/生产
+      # - ./init.sql:/data/application/init.sql  
+
+  redis507:
+    image: "redis:5.0.7"
+    ports:
+      - "6379:6379"    # 映射到宿主机 6379，和你的 dev.yaml 保持一致
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      # - ./redis_data:/data   # 容器内 /data 是 Redis 默认持久化目录
+      - redis_data:/data
+
+# 所有开发成员只需要 docker-compose up -d
+# 数据存储在 Docker Volume，路径由 Docker 管理，不依赖每个人本地的目录
+volumes:
+  mysql_data:
+  redis_data:

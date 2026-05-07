@@ -1,0 +1,97 @@
+# ===============================
+# OS / Editor
+# ===============================
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===============================
+# Go build artifacts
+# ===============================
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# ===============================
+# Go workspace / cache
+# ===============================
+vendor/
+go.work
+go.work.sum
+
+# ===============================
+# Logs (important!)
+# ===============================
+*.log
+logs/
+log/
+
+# ===============================
+# Environment variables
+# ===============================
+.env
+.env.*
+!.env.example
+
+# ===============================
+# Docker
+# ===============================
+docker-data/
+mysql-data/
+redis-data/
+data/
+
+# ===============================
+# Frontend
+# ===============================
+node_modules/
+
+# 前端构建产物（如果是可再生成的）
+dist/
+build/
+
+# ===============================
+# Temporary / runtime
+# ===============================
+tmp/
+temp/
+*.pid
+
+# ===============================
+# Database dumps / backups
+# ===============================
+# 不该上传的 SQL 是啥？
+# 数据库导出文件（dump），包含敏感真实数据的 INSERT 语句，临时调试或临时查询语句
+# 这些都不适合存 GitHub，防止泄露或仓库膨胀。
+*.sql
+*.dump
+*.bak
+# 但不忽略 migrations 目录下的 SQL（包含子目录）迁移脚本
+!migrations/*.sql
+!migrations/**/*.sql 
+# seeds文件的sql也暂且放进去吧
+!seeds/*.sql
+!seeds/**/*.sql 
+
+# ===============================
+# Coverage / profiling
+# ===============================
+coverage/
+*.cov
+*.pprof
+
+# ===============================
+# conf
+# ===============================
+conf/config.yaml
+conf/dev.yaml
