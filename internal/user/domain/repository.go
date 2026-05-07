@@ -9,5 +9,6 @@ type UserRepository interface {
 	GetByUserID(ctx context.Context, id UserID) (*User, error)
 	GetByEmail(ctx context.Context, email Email) (*User, error)
 	GetByUsername(ctx context.Context, username string) (*User, error)
-	// Update(ctx context.Context, user *User) error  // TODO
+	UpdatePassword(ctx context.Context, id UserID, passwordHash string) error
+	UpdateEmailVerified(ctx context.Context, id UserID, verified bool) error
 }

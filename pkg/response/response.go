@@ -38,6 +38,14 @@ func NoContent(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// TooManyRequests 返回 429 状态码
+func TooManyRequests(c *gin.Context, msg string) {
+	c.JSON(http.StatusTooManyRequests, gin.H{
+		"code": http.StatusTooManyRequests,
+		"msg":  msg,
+	})
+}
+
 // --- 错误核心 ---
 // 最底层方法
 // errs为错误细节，举例：

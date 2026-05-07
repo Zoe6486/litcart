@@ -1,45 +1,3 @@
-// package domain
-
-// import "time"
-
-// type UserStatus int8
-
-// const (
-// 	StatusActive    UserStatus = 1
-// 	StatusSuspended UserStatus = 2
-// 	StatusDeleted   UserStatus = 3
-// )
-
-// type User struct {
-// 	ID        UserID
-// 	Username  string
-// 	Email     Email
-// 	Status    UserStatus
-// 	CreatedAt time.Time
-// 	UpdatedAt time.Time
-// }
-
-// func (u *User) ToDBModel(passwordHash string) any {
-// 	panic("unimplemented")
-// }
-
-// func NewUser(username string, email Email) (*User, error) {
-// 	if username == "" {
-// 		return nil, ErrUsernameRequired
-// 	}
-// 	if err := email.Validate(); err != nil {
-// 		return nil, err
-// 	}
-
-//		return &User{
-//			ID:        NewUserID(),
-//			Username:  username,
-//			Email:     email,
-//			Status:    StatusActive,
-//			CreatedAt: time.Now(),
-//			UpdatedAt: time.Now(),
-//		}, nil
-//	}
 package domain
 
 import (
@@ -71,23 +29,30 @@ func (s UserStatus) String() string {
 
 const (
 	minPasswordLen = 8
-	maxPasswordLen = 72 // bcrypt 最大输入 72 字节
+	maxPasswordLen = 72
 	minUsernameLen = 4
 	maxUsernameLen = 32
 )
 
-// User 是用户领域实体。PasswordHash 不会出现在任何对外的 DTO 中。
+// User 是用户领域实体。
+//
+// 时间戳设计:
+//
+//	CreatedAt / UpdatedAt 由数据库 DEFAULT CURRENT_TIMESTAMP 与 ON UPDATE 维护,
+//	Go 端不主动赋值。新建实体时这两个字段是零值,Insert 后由 repository 回填。
+//	这样多个服务/多副本写同一张表也不会有时钟漂移。
 type User struct {
-	ID           UserID
-	Username     string
-	Email        Email
-	PasswordHash string
-	Status       UserStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID            UserID
+	Username      string
+	Email         Email
+	PasswordHash  string
+	Status        UserStatus
+	EmailVerified bool
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
-// NewUser 创建新用户。明文密码立刻被 bcrypt 哈希,绝不存原文。
+// NewUser 创建新用户。EmailVerified 默认 false,需要走邮件验证流程激活。
 func NewUser(username string, email Email, plainPassword string) (*User, error) {
 	if err := validateUsername(username); err != nil {
 		return nil, err
@@ -95,7 +60,7 @@ func NewUser(username string, email Email, plainPassword string) (*User, error) 
 	if err := email.Validate(); err != nil {
 		return nil, err
 	}
-	if err := validatePassword(plainPassword); err != nil {
+	if err := ValidatePassword(plainPassword); err != nil {
 		return nil, err
 	}
 
@@ -104,19 +69,17 @@ func NewUser(username string, email Email, plainPassword string) (*User, error) 
 		return nil, err
 	}
 
-	now := time.Now()
 	return &User{
-		ID:           NewUserID(),
-		Username:     username,
-		Email:        email,
-		PasswordHash: string(hash),
-		Status:       StatusActive,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            NewUserID(),
+		Username:      username,
+		Email:         email,
+		PasswordHash:  string(hash),
+		Status:        StatusActive,
+		EmailVerified: false,
+		// CreatedAt / UpdatedAt 由 DB 填
 	}, nil
 }
 
-// VerifyPassword 校验明文密码。匹配返回 nil,不匹配返回 ErrInvalidPassword。
 func (u *User) VerifyPassword(plain string) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plain)); err != nil {
 		return ErrInvalidPassword
@@ -124,13 +87,17 @@ func (u *User) VerifyPassword(plain string) error {
 	return nil
 }
 
-// ChangePassword 修改密码(为后续修改密码功能预留)。
-// 必须先验证旧密码——这是领域规则,不依赖上层调用方记得做。
+// ChangePassword 改密码。强制验证旧密码——领域规则,不依赖上层记得做。
 func (u *User) ChangePassword(oldPlain, newPlain string) error {
 	if err := u.VerifyPassword(oldPlain); err != nil {
 		return err
 	}
-	if err := validatePassword(newPlain); err != nil {
+	return u.ResetPassword(newPlain)
+}
+
+// ResetPassword 直接设置新密码(用于"忘记密码"流程,token 已校验过)。
+func (u *User) ResetPassword(newPlain string) error {
+	if err := ValidatePassword(newPlain); err != nil {
 		return err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPlain), bcrypt.DefaultCost)
@@ -138,20 +105,12 @@ func (u *User) ChangePassword(oldPlain, newPlain string) error {
 		return err
 	}
 	u.PasswordHash = string(hash)
-	u.UpdatedAt = time.Now()
 	return nil
 }
 
-// Suspend / Activate 管理用户状态(为管理员功能预留)。
-func (u *User) Suspend() {
-	u.Status = StatusSuspended
-	u.UpdatedAt = time.Now()
-}
-
-func (u *User) Activate() {
-	u.Status = StatusActive
-	u.UpdatedAt = time.Now()
-}
+func (u *User) MarkEmailVerified() { u.EmailVerified = true }
+func (u *User) Suspend()           { u.Status = StatusSuspended }
+func (u *User) Activate()          { u.Status = StatusActive }
 
 func (u *User) IsActive() bool    { return u.Status == StatusActive }
 func (u *User) IsSuspended() bool { return u.Status == StatusSuspended }
@@ -162,13 +121,6 @@ func validateUsername(username string) error {
 	}
 	if len(username) < minUsernameLen || len(username) > maxUsernameLen {
 		return ErrUsernameRequired
-	}
-	return nil
-}
-
-func validatePassword(plain string) error {
-	if len(plain) < minPasswordLen || len(plain) > maxPasswordLen {
-		return ErrInvalidPassword
 	}
 	return nil
 }

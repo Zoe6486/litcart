@@ -6,12 +6,12 @@ import (
 	"litcart/internal/user/domain"
 )
 
-// ---- 入参 DTO ----
+// ---- 注册 / 登录 ----
 
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,alphanum,min=4,max=32"`
 	Email    string `json:"email"    binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=72"` // bcrypt 上限 72 字节
+	Password string `json:"password" binding:"required,min=8,max=72"`
 }
 
 type LoginRequest struct {
@@ -19,31 +19,53 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// ---- 响应 DTO ----
-//
-// UserResponse 不包含 PasswordHash,任何对外暴露的用户信息都走这里。
-type UserResponse struct {
-	UserID    string    `json:"user_id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"` // RFC3339 by default
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func NewUserResponse(u *domain.User) *UserResponse {
-	return &UserResponse{
-		UserID:    u.ID.String(),
-		Username:  u.Username,
-		Email:     u.Email.String(),
-		Status:    u.Status.String(),
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
-}
-
 type LoginResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   int64  `json:"expires_in"`
+}
+
+// ---- 邮件验证 ----
+
+type VerifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+type ResendVerifyRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ---- 找回密码 ----
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"        binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=72"`
+}
+
+// ---- User 视图 ----
+
+type UserResponse struct {
+	UserID        string    `json:"user_id"`
+	Username      string    `json:"username"`
+	Email         string    `json:"email"`
+	Status        string    `json:"status"`
+	EmailVerified bool      `json:"email_verified"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func NewUserResponse(u *domain.User) *UserResponse {
+	return &UserResponse{
+		UserID:        u.ID.String(),
+		Username:      u.Username,
+		Email:         u.Email.String(),
+		Status:        u.Status.String(),
+		EmailVerified: u.EmailVerified,
+		CreatedAt:     u.CreatedAt,
+		UpdatedAt:     u.UpdatedAt,
+	}
 }

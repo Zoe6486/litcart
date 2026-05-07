@@ -9,9 +9,10 @@ type Email string
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
-// NewEmail 创建并校验 Email 值对象。
+// NewEmail 创建 Email 值对象。
+// 注意:trim + lowercase 是规范化处理,与数据库 collation 配合保证大小写不敏感。
 func NewEmail(email string) (Email, error) {
-	e := Email(strings.TrimSpace(strings.ToLower(email)))
+	e := Email(strings.ToLower(strings.TrimSpace(email)))
 	if err := e.Validate(); err != nil {
 		return "", err
 	}
